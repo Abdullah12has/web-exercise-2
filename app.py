@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_restful import Api, Resource
 
@@ -48,7 +48,8 @@ class ProductCollection(Resource):
         db.session.add(product)
         db.session.commit()
         
-        return {"message": "Product added successfully"}, 201
+        headers = {"Location": f"/api/products/{product.handle}/"}
+        return Response("Product added successfully", status=201, headers=headers)
 
 api.add_resource(ProductCollection, "/api/products/")
 
