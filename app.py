@@ -1,6 +1,7 @@
-from flask import Flask, request, Response
+from flask import Flask, request, Response, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_restful import Api, Resource
+from werkzeug.routing import BaseConverter
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///inventory.db'
@@ -22,6 +23,18 @@ class StorageItem(db.Model):
     location = db.Column(db.String(64), nullable=False)
     qty = db.Column(db.Integer, nullable=False)
     product = db.relationship("Product", back_populates="in_storage")
+
+class ProductConverter(BaseConverter):
+    def to_python(self, value):
+        product = Product.query.filter_by(handle=value).first()
+        if product is None:
+            abort(404, description="Product not found")
+        return product
+
+    def to_url(self, value):
+        return value.handle
+
+app.url_map.converters['product'] = ProductConverter
 
 class ProductCollection(Resource):
     def get(self):
