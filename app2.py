@@ -97,7 +97,8 @@ class MeasurementCollection(Resource):
             measurement.deserialize(data)
             db.session.add(measurement)
             db.session.commit()
-            return "", 201, {"Location": url_for("measurementitem", sensor=sensor, measurement=measurement.id)}
+            location_header = url_for("measurementitem", sensor=sensor, measurement=measurement.id, _external=False) + "/"
+            return "", 201, {"Location": location_header, "Content-Type": "text/html", "Content-Length": "0"}
         except ValidationError as e:
             raise BadRequest(str(e))
         except IntegrityError:
