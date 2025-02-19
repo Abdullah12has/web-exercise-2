@@ -1,12 +1,12 @@
-import json
 from datetime import datetime
-from flask import Flask, request, abort, jsonify, url_for
+from flask import Flask, request, jsonify, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.engine import Engine
 from sqlalchemy import event
 from flask_restful import Api, Resource
-from jsonschema import validate, ValidationError, draft7_format_checker
+from jsonschema import validate, ValidationError
+from jsonschema.validators import Draft7Validator
 from werkzeug.exceptions import NotFound, Conflict, BadRequest, UnsupportedMediaType
 
 app = Flask(__name__)
@@ -67,8 +67,8 @@ class Measurement(db.Model):
         try:
             self.value = float(data["value"])
             self.time = datetime.fromisoformat(data["time"])
-        except (KeyError, ValueError):
-            raise BadRequest("Invalid measurement data format.")
+        except (KeyError, ValueError) as exc:
+            raise BadRequest("Invalid measurement data format.") from exc
 
     @staticmethod
     def json_schema():
@@ -92,7 +92,7 @@ class MeasurementCollection(Resource):
 
         try:
             data = request.get_json()
-            validate(data, Measurement.json_schema(), format_checker=draft7_format_checker)
+            validate(data, Measurement.json_schema(), format_checker=Draft7Validator.FORMAT_CHECKER)
             measurement = Measurement(sensor=sensor_obj)
             measurement.deserialize(data)
             db.session.add(measurement)
@@ -100,10 +100,10 @@ class MeasurementCollection(Resource):
             location_header = url_for("measurementitem", sensor=sensor, measurement=measurement.id, _external=False) + "/"
             return "", 201, {"Location": location_header, "Content-Type": "text/html", "Content-Length": "0"}
         except ValidationError as e:
-            raise BadRequest(str(e))
-        except IntegrityError:
+            raise BadRequest(str(e)) from e
+        except IntegrityError as exc:
             db.session.rollback()
-            raise Conflict("Database integrity error.")
+            raise Conflict("Database integrity error.") from exc
 
 class MeasurementItem(Resource):
     def delete(self, sensor, measurement):
